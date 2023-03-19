@@ -1,9 +1,123 @@
 <html>
-    <head>
-        <title>VS Code Rocks!</title>
-    </head>
-    <body>
-        <h1>VS Code can do that?</h1>
-        <p>Yes it can!</p>
-    </body>
+
+<head>
+    <title>ETSI 14</title>
+</head>
+
+<body>
+</body>
+<script type="module">
+    import { h, Component, render } from 'https://esm.sh/preact';
+    import htm from 'https://esm.sh/htm';
+
+    // Initialize htm with Preact
+    const html = htm.bind(h);
+
+    class GetKeysForm extends Component {
+        state = { key_size: 8, key_count: 1, keys: {} };
+
+        fetchKeys = async () => {
+            const { key_size, key_count } = this.state;
+            const response = await fetch('/api/v1/keys/slave_ID_1/enc_key', {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    size: key_size,
+                    number: key_count,
+                }),
+            });
+
+            if (response.ok) {
+                const keys = await response.json();
+                console.log(keys)
+                this.setState({ keys });
+            } else {
+                console.error("Failed to fetch keys");
+            }
+        };
+
+        onSubmit = async e => {
+            e.preventDefault();
+            this.fetchKeys();
+        }
+
+        onInput = e => {
+            const { id, value } = e.target;
+            this.setState({ [id]: value });
+        }
+
+        render(_, { key_size, key_count, keys }) {
+            return html`
+            <form onSubmit=${this.onSubmit}>
+                <fieldset class="get-keys-form">
+                    <legend>Key Size</legend>
+                    <label for="num-keys">${key_size}</label>
+                    <input 
+                        type="range" 
+                        id="key_size"
+                        name="key_size" 
+                        min="8" 
+                        max="1024" 
+                        value="${key_size}"
+                        step="8"
+                        onInput=${this.onInput}
+                        required /> 
+                        
+                </fieldset>
+                <fieldset class="get-keys-form">
+                    <legend>Amount of Keys</legend>
+                    <label for="num-keys">${key_count}</label>
+                    <input 
+                        type="range" 
+                        id="key_count"
+                        name="key_count"
+                        min="1"
+                        max="128"
+                        value="${key_count}"
+                        onInput=${this.onInput}
+                        required />
+                        
+                </fieldset>
+                <div class="submit"><button type="submit">Get Keys</button></div>
+                ${Object.keys(keys).length > 0 && html`<${KeyContainerTable} keys=${keys} />`}
+            </form>
+            `;
+        }
+    }
+
+    class KeyContainerTable extends Component {
+        render() {
+            const { keys } = this.props;
+
+            return html`
+            <table>
+                <thead>
+                <tr>
+                    <th>id</th>
+                    <th>key</th>
+                </tr>
+                </thead>
+                <tbody>
+                ${Object.entries(keys).map(([id, key]) => html`
+                    <tr>
+                    <td>${id}</td>
+                    <td>${key}</td>
+                    </tr>
+                `)}
+                </tbody>
+            </table>
+            `;
+        }
+    }
+
+    function App(props) {
+        return html`<div><${GetKeysForm} /></div>`;
+    }
+
+
+    render(html`<${App} name="World" />`, document.body);
+</script>
+
 </html>
