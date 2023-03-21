@@ -5,6 +5,31 @@ import secrets
 import base64
 
 
+class KeyContainer:
+    def __init__(self, keys: List[Dict[str, str]] = []):
+        self.keys = keys
+
+    def to_JSON(self):
+        """Returns the keys as a JSON-serializable dictionary."""
+        return jsonify({"keys": self.keys})
+
+    @staticmethod
+    def _format_key_for_ui(key: str) -> str:
+        """Formats the key for display in the UI."""
+        if len(key) > 24:
+            key = key[0:12] + "[...]" + key[-12:]
+        return key
+
+    def __str__(self) -> str:
+        keys_str = "\n".join(
+            [
+                f"\t{key_id} - {self._format_key_for_ui(key)}"
+                for key_id, key in self.keys.items()
+            ]
+        )
+        return f"KeyContainer\n{keys_str}"
+
+
 class Status:
     def __init__(
         self: str,
@@ -38,6 +63,7 @@ class Status:
         return jsonify(self.__dict__)
 
 
+
 class KeyManagementEntity:
     def __init__(
         self,
@@ -59,30 +85,39 @@ class KeyManagementEntity:
         self.keys: Dict[str, Dict[str, str]] = {}
 
     def get_keys(
-        self, 
+        self,
         slave_SAE_ID: str,
-        key_size: int, 
-        amount_of_keys: int, 
-        ext_mandatory: List[Dict[str, str]] = None, 
-        ext_optional: List[Dict[str, str]] = None
-    ) -> Dict[str, str]:
-        generated_keys = self.generate_keys(slave_SAE_ID ,key_size, amount_of_keys)
-        return generated_keys
+        key_size: int,
+        amount_of_keys: int,
+        ext_mandatory: List[Dict[str, str]] = None,
+        ext_optional: List[Dict[str, str]] = None,
+    ) -> KeyContainer:
+        generated_keys = self.generate_keys(
+            slave_SAE_ID, key_size, amount_of_keys
+        )
+        return KeyContainer(generated_keys)
 
     def get_keys_with_ids(
-        self, 
-        key_ids: List[str], 
-    ) -> Dict[str, str]:
+        self,
+        slave_SAE_ID: str,
+        key_ids: List[str],
+    ) -> KeyContainer:
         keys = {}
         for key_id in key_ids:
-            keys[key_id] = base64.b64encode(self.keys[key_id]).decode('utf-8')
-        
-        return keys
+            keys[key_id] = base64.b64encode(
+                self.keys[slave_SAE_ID][key_id]
+            ).decode("utf-8")
 
-    def does_support_mandatory(self, extensions_mandatory: List[Dict[str, str]]):
+        return KeyContainer(keys)
+
+    def does_support_mandatory(
+        self, extensions_mandatory: List[Dict[str, str]]
+    ):
         return False
 
-    def generate_keys(self, slave_SAE_ID, size: int, amount: int ) -> Dict[str, str]:
+    def generate_keys(
+        self, slave_SAE_ID, size: int, amount: int
+    ) -> Dict[str, str]:
         keys = {}
 
         if not slave_SAE_ID in self.keys:
@@ -92,14 +127,7 @@ class KeyManagementEntity:
             key_uuid = str(uuid.uuid4())
             key = secrets.token_bytes(size)
             self.keys[slave_SAE_ID][key_uuid] = key
-            keys[key_uuid] = base64.b64encode(key).decode('utf-8')
-        
+            keys[key_uuid] = base64.b64encode(key).decode("utf-8")
+
         return keys
 
-
-class KeyContainer:
-    def __init__(self, keys: List[Dict[str, str]] = None):
-        self.keys = keys if keys else []
-
-    def to_JSON(self):
-        return jsonify({"keys": self.keys})

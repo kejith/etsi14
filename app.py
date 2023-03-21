@@ -3,42 +3,41 @@
 # Licensed under the MIT License. See LICENSE in the project root for license information.
 # -----------------------------------------------------------------------------------------
 
+from typing import List
 from flask import Flask, jsonify, request
-from model import Status, KeyManagementEntity
+from flask_cors import CORS
+from model import KeyContainer, Status, KeyManagementEntity
 from errors import KeySizeError, ExtensionMandatoryUnsupportedError
 
 
 app = Flask(__name__)
+cors = CORS(app, resources={r"/api/*": {"origins": ["http://localhost:*", "http://127.0.0.1:*"]}})
+
 _KeyManager = KeyManagementEntity(
-    id="AAAABBBBCCCCDDDD",
+    id="kme_ID_1",
     key_size=352,
     max_key_count=1024,
     max_key_per_request=128,
-    min_key_size=64,
+    min_key_size=8,
     max_key_size=1024,
     max_SAE_ID_count=10,
 )
 
 
-@app.route("/")
-def hello():
-    return app.send_static_file("index.html")
-
-
 @app.route("/api/v1/keys/<string:slave_SAE_ID>/enc_key", methods=["GET", "POST"])
 def get_key(slave_SAE_ID):
-    extension_mandatory = None
-    extension_optional = None
-    additional_slave_SAE_IDs = None
-    amount_of_keys = 0
+    extension_mandatory: List[str] = []
+    extension_optional: List[str] = []
+    additional_slave_SAE_IDs: List[str] = []
+    amount_of_keys: int = 0
 
     if request.method == "POST":
         data = request.get_json()
 
         amount_of_keys = int(data.get("number", 1))
         key_size = int(data.get("size", _KeyManager.key_size))
-        additional_slave_SAE_IDs = data.get("additional_slave_SAE_IDs", [])
         extension_mandatory = data.get("extension_mandatory", [])
+        additional_slave_SAE_IDs = data.get("additional_slave_SAE_IDs", [])
         extension_optional = data.get("extension_optional", [])
     else:
         amount_of_keys = request.args.get("number", default = 1, type = int)
@@ -53,23 +52,46 @@ def get_key(slave_SAE_ID):
     ):
         error = ExtensionMandatoryUnsupportedError()
         return error.to_JSON(), error.status_code
-    print(_KeyManager.get_keys(slave_SAE_ID, key_size, amount_of_keys))
-    return jsonify(_KeyManager.get_keys(slave_SAE_ID, key_size, amount_of_keys)), 200
+    
+    key_container = _KeyManager.get_keys(slave_SAE_ID, key_size, amount_of_keys)
+    
+    print(
+        f"get_key()\n" +
+        f"    slave_SAE_ID: {slave_SAE_ID}\n" +
+        f"    size: {key_size}\n" +
+        f"    number: {amount_of_keys}\n" +
+        f"Result:\n" +
+        f"    {key_container.__str__()}"
+    )
+
+    return key_container.to_JSON(), 200
 
 
 @app.route("/api/v1/keys/<string:master_SAE_ID>/dec_key", methods=["GET", "POST"])
 def get_keys_by_id(master_SAE_ID):
-    keys = None
+    slave_SAE_ID: str = request.headers.get('Host')
+    key_container: KeyContainer = None
+    key_ids: List[str] = []
+
     if request.method == "POST":
-        data = request.get_json()
-
-        amount_of_keys = data.get("number", 1)
+        data: object = request.get_json()
+        key_ids = data.get("key_ids", [])
     else:
-        key_id = request.args.get("key_id", default = "", type = str)
-        keys = _KeyManager.get_keys_with_ids([key_id])
+        key_id: str = request.args.get("key_id", default = "", type = str)
+        key_ids.append(key_id) 
 
-    if keys: 
-        return jsonify(keys), 200
+    key_container = _KeyManager.get_keys_with_ids(slave_SAE_ID, key_ids)
+    print(
+        f"get_keys_by_id()\n" +
+        f"    master_SAE_ID: {master_SAE_ID}\n" +
+        f"    key_ids: \n" +
+        f"      {key_ids}\n" +
+        f"Result:\n" +
+        f"    {key_container.__str__()}"
+    )
+
+    if key_container: 
+        return key_container.to_JSON(), 200
     else:
         return jsonify({}), 400
 
@@ -79,8 +101,8 @@ def get_status(slave_ID: str):
     return Status(
         source_KME_ID="AAAABBBBCCCCDDDD",
         target_KME_ID="EEEEFFFFGGGGHHHH",
-        master_SAE_ID="IIIIJJJJKKKKLLLL",
-        slave_SAE_ID="MMMMNNNNOOOOPPPP",
+        master_SAE_ID="master_SAE_ID_1",
+        slave_SAE_ID="slave_SAE_ID_1",
         key_size=_KeyManager.key_size,
         stored_key_count=1000,#_KeyManager.stored_key_count(),
         max_key_count=_KeyManager.max_key_count,
