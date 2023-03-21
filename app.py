@@ -8,10 +8,35 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from model import KeyContainer, Status, KeyManagementEntity
 from errors import KeySizeError, ExtensionMandatoryUnsupportedError
+from flask import send_from_directory
+
 
 
 app = Flask(__name__)
-cors = CORS(app, resources={r"/api/*": {"origins": ["http://localhost:*", "http://127.0.0.1:*"]}})
+cors = CORS(app, resources={r"/api/*": {
+    "origins": ["http://localhost:*", "http://127.0.0.1:*", "http://178.254.28.176:*"]
+}})
+
+from logging.config import dictConfig
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://sys.stdout',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+
+import logging
+#logging.basicConfig(filename='logs/keys.log', encoding='utf-8', level=logging.DEBUG)
 
 _KeyManager = KeyManagementEntity(
     id="kme_ID_1",
@@ -22,6 +47,10 @@ _KeyManager = KeyManagementEntity(
     max_key_size=1024,
     max_SAE_ID_count=0,
 )
+
+@app.route('/<path:path>')
+def send_report(path):
+    return send_from_directory('static', path)
 
 
 @app.route("/api/v1/keys/<string:slave_SAE_ID>/enc_key", methods=["GET", "POST"])
@@ -55,7 +84,7 @@ def get_key(slave_SAE_ID):
     
     key_container = _KeyManager.get_keys(slave_SAE_ID, key_size, amount_of_keys)
     
-    print(
+    logging.info(
         f"get_key()\n" +
         f"    slave_SAE_ID: {slave_SAE_ID}\n" +
         f"    size: {key_size}\n" +
@@ -81,7 +110,7 @@ def get_keys_by_id(master_SAE_ID):
         key_ids.append(key_id) 
 
     key_container = _KeyManager.get_keys_with_ids(slave_SAE_ID, key_ids)
-    print(
+    logging.info(
         f"get_keys_by_id()\n" +
         f"    master_SAE_ID: {master_SAE_ID}\n" +
         f"    key_ids: \n" +
