@@ -92,10 +92,10 @@ class KeyManagementEntity:
         ext_mandatory: List[Dict[str, str]] = None,
         ext_optional: List[Dict[str, str]] = None,
     ) -> KeyContainer:
-        generated_keys = self.generate_keys(
+        generated_keys_container = self.generate_keys(
             slave_SAE_ID, key_size, amount_of_keys
         )
-        return KeyContainer(generated_keys)
+        return generated_keys_container
 
     def get_keys_with_ids(
         self,
@@ -117,7 +117,7 @@ class KeyManagementEntity:
 
     def generate_keys(
         self, slave_SAE_ID, size: int, amount: int
-    ) -> Dict[str, str]:
+    ) -> KeyContainer:
         keys = {}
 
         if not slave_SAE_ID in self.keys:
@@ -129,5 +129,5 @@ class KeyManagementEntity:
             self.keys[slave_SAE_ID][key_uuid] = key
             keys[key_uuid] = base64.b64encode(key).decode("utf-8")
 
-        return keys
+        return KeyContainer(keys)
 

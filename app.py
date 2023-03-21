@@ -20,7 +20,7 @@ _KeyManager = KeyManagementEntity(
     max_key_per_request=128,
     min_key_size=8,
     max_key_size=1024,
-    max_SAE_ID_count=10,
+    max_SAE_ID_count=0,
 )
 
 
@@ -32,13 +32,13 @@ def get_key(slave_SAE_ID):
     amount_of_keys: int = 0
 
     if request.method == "POST":
-        data = request.get_json()
+        post_data = request.get_json()
 
-        amount_of_keys = int(data.get("number", 1))
-        key_size = int(data.get("size", _KeyManager.key_size))
-        extension_mandatory = data.get("extension_mandatory", [])
-        additional_slave_SAE_IDs = data.get("additional_slave_SAE_IDs", [])
-        extension_optional = data.get("extension_optional", [])
+        amount_of_keys = int(post_data.get("number", 1))
+        key_size = int(post_data.get("size", _KeyManager.key_size))
+        extension_mandatory = post_data.get("extension_mandatory", [])
+        additional_slave_SAE_IDs = post_data.get("additional_slave_SAE_IDs", [])
+        extension_optional = post_data.get("extension_optional", [])
     else:
         amount_of_keys = request.args.get("number", default = 1, type = int)
         key_size = request.args.get("size", default = _KeyManager.key_size, type = int)
