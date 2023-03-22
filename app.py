@@ -13,10 +13,6 @@ from flask import send_from_directory
 
 
 app = Flask(__name__)
-cors = CORS(app, resources={r"/api/*": {
-    "origins": ["http://localhost:*", "http://127.0.0.1:*", "http://178.254.28.176:*"]
-}})
-
 from logging.config import dictConfig
 
 dictConfig({
@@ -36,7 +32,12 @@ dictConfig({
 })
 
 import logging
-#logging.basicConfig(filename='logs/keys.log', encoding='utf-8', level=logging.DEBUG)
+
+import os
+_PORT = os.getenv("FLASK_RUN_PORT")
+logging.info(f"FLASK_RUN_PORT: {_PORT}")
+
+
 
 _KeyManager = KeyManagementEntity(
     id="kme_ID_1",
@@ -74,12 +75,14 @@ def get_key(slave_SAE_ID):
 
     if key_size % 8 != 0:
         error = KeySizeError()
+        logging.error(error.message)
         return error.to_JSON(), error.status_code
 
     if extension_mandatory and not _KeyManager.does_support_mandatory(
         extensions_mandatory=extension_mandatory
     ):
         error = ExtensionMandatoryUnsupportedError()
+        logging.error(error.message)
         return error.to_JSON(), error.status_code
     
     key_container = _KeyManager.get_keys(slave_SAE_ID, key_size, amount_of_keys)
