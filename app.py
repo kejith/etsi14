@@ -4,7 +4,7 @@
 # -----------------------------------------------------------------------------------------
 
 from typing import List
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request, send_file
 from flask_cors import CORS
 from model import KeyContainer, Status, KeyManagementEntity
 from errors import KeySizeError, ExtensionMandatoryUnsupportedError
@@ -53,8 +53,12 @@ _KeyManager = KeyManagementEntity(
     max_SAE_ID_count=0,
 )
 
+@app.route('/')
+def index():
+    return send_file('static/index.html')
+
 @app.route('/<path:path>')
-def send_report(path):
+def send_from_static(path):
     return send_from_directory('static', path)
 
 
