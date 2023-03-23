@@ -7,15 +7,27 @@ import base64
 
 class KeyContainer:
     def __init__(self, keys: List[Dict[str, str]] = []):
+        """
+        Initializes a new instance of the KeyContainer class.
+
+        :param keys: A list of dictionaries containing (id, keys) pairs.
+        """
         self.keys = keys
 
     def to_JSON(self):
-        """Returns the keys as a JSON-serializable dictionary."""
+        """
+        Returns the keys as a JSON-serializable dictionary.
+        """
         return jsonify({"keys": self.keys})
 
     @staticmethod
     def _format_key_for_ui(key: str) -> str:
-        """Formats the key for display in the UI."""
+        """
+        Formats the key for display in the UI.
+
+        :param key: The key to format.
+        :return: The formatted key.
+        """
         if len(key) > 24:
             key = key[0:12] + "[...]" + key[-12:]
         return key
@@ -63,7 +75,6 @@ class Status:
         return jsonify(self.__dict__)
 
 
-
 class KeyManagementEntity:
     def __init__(
         self,
@@ -89,8 +100,9 @@ class KeyManagementEntity:
         slave_SAE_ID: str,
         key_size: int,
         amount_of_keys: int,
-        ext_mandatory: List[Dict[str, str]] = None,
-        ext_optional: List[Dict[str, str]] = None,
+        additional_slave_SAE_IDs: List[str] = [],
+        ext_mandatory: List[Dict[str, str]] = [],
+        ext_optional: List[Dict[str, str]] = [],
     ) -> KeyContainer:
         generated_keys_container = self.generate_keys(
             slave_SAE_ID, key_size, amount_of_keys
@@ -113,21 +125,26 @@ class KeyManagementEntity:
     def does_support_mandatory(
         self, extensions_mandatory: List[Dict[str, str]]
     ):
-        return False
+        return len(extensions_mandatory) == 0
 
     def generate_keys(
-        self, slave_SAE_ID, size: int, amount: int
+        self,
+        slave_SAE_ID,
+        size: int,
+        amount: int,
+        additional_slave_SAE_IDs: List[str] = [],
     ) -> KeyContainer:
         keys = {}
 
-        if not slave_SAE_ID in self.keys:
-            self.keys[slave_SAE_ID] = {}
+        additional_slave_SAE_IDs.append(slave_SAE_ID)
 
         for i in range(amount):
             key_uuid = str(uuid.uuid4())
             key = secrets.token_bytes(size)
-            self.keys[slave_SAE_ID][key_uuid] = key
+            for slave_ID in additional_slave_SAE_IDs:
+                if not slave_ID in self.keys:
+                    self.keys[slave_ID] = {}
+                self.keys[slave_ID][key_uuid] = key
             keys[key_uuid] = base64.b64encode(key).decode("utf-8")
 
         return KeyContainer(keys)
-

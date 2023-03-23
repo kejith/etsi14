@@ -1,3 +1,4 @@
+from typing import List, Dict
 from flask import jsonify
 
 
@@ -12,7 +13,7 @@ class RequestError:
     def to_JSON(self):
         error = {"message": self.message}
         if isinstance(self.details, list) and len(self.details) > 0:
-            error.details = self.details
+            error["details"] = self.details
         return jsonify(error)
 
 
@@ -25,11 +26,12 @@ class KeySizeError(RequestError):
 
 
 class ExtensionMandatoryUnsupportedError(RequestError):
-    def __init__(self):
+    def __init__(self, extension_mandatory: List[Dict[str, str]]):
         super().__init__(
             message="not all extension_mandatory parameters are supported",
             status_code=400,
         )
+        self.details = extension_mandatory
 
 
 class ExtensionMandatoryRequirementsError(RequestError):

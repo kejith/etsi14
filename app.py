@@ -11,9 +11,13 @@ from errors import KeySizeError, ExtensionMandatoryUnsupportedError
 from flask import send_from_directory
 
 
-
 app = Flask(__name__)
 from logging.config import dictConfig
+
+# TODO: remove in production
+cors = CORS(app, resources={r"/api/*": {
+    "origins": ["http://localhost:*", "http://127.0.0.1:*", "http://178.254.28.176:*"]
+}})
 
 dictConfig({
     'version': 1,
@@ -56,7 +60,7 @@ def send_report(path):
 
 @app.route("/api/v1/keys/<string:slave_SAE_ID>/enc_key", methods=["GET", "POST"])
 def get_key(slave_SAE_ID):
-    extension_mandatory: List[str] = []
+    extension_mandatory: List[Dict[str, str]] = []
     extension_optional: List[str] = []
     additional_slave_SAE_IDs: List[str] = []
     amount_of_keys: int = 0
@@ -78,14 +82,12 @@ def get_key(slave_SAE_ID):
         logging.error(error.message)
         return error.to_JSON(), error.status_code
 
-    if extension_mandatory and not _KeyManager.does_support_mandatory(
-        extensions_mandatory=extension_mandatory
-    ):
-        error = ExtensionMandatoryUnsupportedError()
+    if not _KeyManager.does_support_mandatory(extension_mandatory):
+        error = ExtensionMandatoryUnsupportedError(extension_mandatory)
         logging.error(error.message)
         return error.to_JSON(), error.status_code
     
-    key_container = _KeyManager.get_keys(slave_SAE_ID, key_size, amount_of_keys)
+    key_container = _KeyManager.get_keys(slave_SAE_ID, key_size, amount_of_keys, additional_slave_SAE_IDs)
     
     logging.info(
         f"get_key()\n" +
